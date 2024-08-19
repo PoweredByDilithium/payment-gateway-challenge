@@ -28,7 +28,7 @@ jobs:
       run: dotnet tool install -g dotnet-reportgenerator-globaltool
     
     - name: Test with coverage
-      run: dotnet test --no-build --verbosity normal /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:CoverletOutput=TestResults/coverage/
+      run: dotnet test --no-build --verbosity normal /p:CollectCoverage=true /p:CoverletOutputFormat=cobertura /p:CoverletOutput=TestResults/coverage/coverage.cobertura.xml
 
     - name: Generate Coverage Report
       run: reportgenerator -reports:"TestResults/coverage/coverage.cobertura.xml" -targetdir:"coverage-report" -reporttypes:Html
