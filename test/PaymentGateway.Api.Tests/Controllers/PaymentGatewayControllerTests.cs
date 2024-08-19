@@ -52,7 +52,7 @@ namespace PaymentGateway.Api.Tests.Controllers
                 .ReturnsAsync(paymentResponse);
 
             // Act
-            var result = await _controller.ProcessPayment(paymentRequest) as OkObjectResult;
+            var result = await _controller.Post(paymentRequest) as OkObjectResult;
 
             // Assert
             Assert.NotNull(result);
@@ -79,11 +79,62 @@ namespace PaymentGateway.Api.Tests.Controllers
                 .ThrowsAsync(new Exception("Bad Request"));
 
             // Act
-            var result = await _controller.ProcessPayment(paymentRequest) as StatusCodeResult;
+            var result = await _controller.Post(paymentRequest) as StatusCodeResult;
 
             // Assert
             Assert.NotNull(result);
             Assert.Equal((int)HttpStatusCode.BadRequest, result?.StatusCode);
+        }
+
+        [Fact]
+        public async Task Get_ReturnsOkResult_WithPaymentResponse()
+        {
+            // Arrange
+            var paymentId = Guid.NewGuid();
+            var expectedPaymentResponse = new PaymentResponse
+            {
+                Id = paymentId,
+                Status = Enums.PaymentStatus.Authorized,
+                ExpiryMonth = 12,
+                ExpiryYear = DateTime.Now.Year + 1,
+                Currency = "USD",
+                Amount = 100,
+                LastFourCardDigits = "1234"
+            };
+
+            _paymentGatewayManagerMock.Setup(m => m.FetchPaymentAsync(paymentId))
+                .ReturnsAsync(expectedPaymentResponse);
+
+            // Act
+            var result = await _controller.Get(paymentId) as OkObjectResult;
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal(200, result?.StatusCode);
+            Assert.Equal(expectedPaymentResponse, result?.Value);
+
+            _paymentGatewayManagerMock.Verify(m => m.FetchPaymentAsync(paymentId), Times.Once);
+        }
+
+        [Fact]
+        public async Task Get_ReturnsBadRequest_WhenExceptionIsThrown()
+        {
+            // Arrange
+            var paymentId = Guid.NewGuid();
+            var exceptionMessage = "An error occurred";
+            
+            _paymentGatewayManagerMock.Setup(m => m.FetchPaymentAsync(paymentId))
+                .ThrowsAsync(new Exception(exceptionMessage));
+
+            // Act
+            var result = await _controller.Get(paymentId) as BadRequestObjectResult;
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal(400, result?.StatusCode);
+            Assert.Equal(exceptionMessage, ((Exception)result.Value).Message);
+
+            _paymentGatewayManagerMock.Verify(m => m.FetchPaymentAsync(paymentId), Times.Once);
         }
     }
 }

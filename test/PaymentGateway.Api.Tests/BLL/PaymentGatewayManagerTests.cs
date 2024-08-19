@@ -1,10 +1,10 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
-
 using Moq;
 using Moq.Protected;
 using PaymentGateway.Api.BLL;
+using PaymentGateway.Api.DAL;
 using PaymentGateway.Api.Entities;
 using PaymentGateway.Api.Models;
 
@@ -14,6 +14,7 @@ namespace PaymentGateway.Api.Tests.BLL
     {
         private readonly Mock<IHttpClientFactory> _httpClientFactoryMock;
         private readonly Mock<HttpMessageHandler> _httpMessageHandlerMock;
+        private readonly Mock<IPaymentGatewayDal> _dalPaymentGateway;
         private readonly HttpClient _httpClient;
         private readonly PaymentGatewayManager _paymentGatewayManager;
 
@@ -29,7 +30,9 @@ namespace PaymentGateway.Api.Tests.BLL
             _httpClientFactoryMock.Setup(factory => factory.CreateClient("BankClient"))
                                   .Returns(_httpClient);
 
-            _paymentGatewayManager = new PaymentGatewayManager(_httpClientFactoryMock.Object);
+            _dalPaymentGateway = new Mock<IPaymentGatewayDal>();
+
+            _paymentGatewayManager = new PaymentGatewayManager(_httpClientFactoryMock.Object, _dalPaymentGateway.Object);
         }
 
         [Fact]
@@ -64,6 +67,20 @@ namespace PaymentGateway.Api.Tests.BLL
                     StatusCode = HttpStatusCode.OK,
                     Content = new StringContent(responseContent, Encoding.UTF8, "application/json")
                 });
+
+            var expectedPaymentResponse = new PaymentResponse
+            {
+                Id = Guid.Empty,
+                Status = Enums.PaymentStatus.Authorized,
+                ExpiryMonth = paymentRequest.ExpiryMonth,
+                ExpiryYear = paymentRequest.ExpiryYear,
+                Currency = paymentRequest.Currency,
+                Amount = paymentRequest.Amount,
+                LastFourCardDigits = paymentRequest.CardNumber[^4..]
+            };
+
+            _dalPaymentGateway.Setup(d => d.SavePaymentResponseAsync(It.IsAny<PaymentResponse>()))
+                    .ReturnsAsync(expectedPaymentResponse);
 
             // Act
             var actualResponse = await _paymentGatewayManager.ProcessPaymentAsync(paymentRequest);
@@ -107,6 +124,20 @@ namespace PaymentGateway.Api.Tests.BLL
                     StatusCode = HttpStatusCode.OK,
                     Content = new StringContent(responseContent, Encoding.UTF8, "application/json")
                 });
+
+            var expectedPaymentResponse = new PaymentResponse
+            {
+                Id = Guid.Empty,
+                Status = Enums.PaymentStatus.Declined,
+                ExpiryMonth = paymentRequest.ExpiryMonth,
+                ExpiryYear = paymentRequest.ExpiryYear,
+                Currency = paymentRequest.Currency,
+                Amount = paymentRequest.Amount,
+                LastFourCardDigits = paymentRequest.CardNumber[^4..]
+            };
+
+            _dalPaymentGateway.Setup(d => d.SavePaymentResponseAsync(It.IsAny<PaymentResponse>()))
+                    .ReturnsAsync(expectedPaymentResponse);
 
             // Act
             var actualResponse = await _paymentGatewayManager.ProcessPaymentAsync(paymentRequest);
@@ -156,6 +187,74 @@ namespace PaymentGateway.Api.Tests.BLL
 
             // Assert
             Assert.Equal(Enums.PaymentStatus.Rejected, actualResponse.Status);
+        }
+
+                [Fact]
+        public async Task FetchPaymentAsync_ReturnsPaymentResponse_WhenPaymentExists()
+        {
+            // Arrange
+            var paymentId = Guid.NewGuid();
+            var expectedPaymentResponse = new PaymentResponse
+            {
+                Id = paymentId,
+                Status = Enums.PaymentStatus.Authorized,
+                ExpiryMonth = 12,
+                ExpiryYear = DateTime.Now.Year + 1,
+                Currency = "USD",
+                Amount = 100,
+                LastFourCardDigits = "1234"
+            };
+
+            _dalPaymentGateway.Setup(d => d.FetchPaymentResponseAsync(paymentId))
+                    .ReturnsAsync(expectedPaymentResponse);
+
+            // Act
+            var result = await _paymentGatewayManager.FetchPaymentAsync(paymentId);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal(expectedPaymentResponse.Id, result?.Id);
+            Assert.Equal(expectedPaymentResponse.Status, result?.Status);
+            Assert.Equal(expectedPaymentResponse.ExpiryMonth, result?.ExpiryMonth);
+            Assert.Equal(expectedPaymentResponse.ExpiryYear, result?.ExpiryYear);
+            Assert.Equal(expectedPaymentResponse.Currency, result?.Currency);
+            Assert.Equal(expectedPaymentResponse.Amount, result?.Amount);
+            Assert.Equal(expectedPaymentResponse.LastFourCardDigits, result?.LastFourCardDigits);
+
+            _dalPaymentGateway.Verify(d => d.FetchPaymentResponseAsync(paymentId), Times.Once);
+        }
+
+        [Fact]
+        public async Task FetchPaymentAsync_ReturnsNull_WhenPaymentDoesNotExist()
+        {
+            // Arrange
+            var paymentId = Guid.NewGuid();
+
+            _dalPaymentGateway.Setup(d => d.FetchPaymentResponseAsync(paymentId))
+                    .ReturnsAsync((PaymentResponse?)null);
+
+            // Act
+            var result = await _paymentGatewayManager.FetchPaymentAsync(paymentId);
+
+            // Assert
+            Assert.Null(result);
+
+            _dalPaymentGateway.Verify(d => d.FetchPaymentResponseAsync(paymentId), Times.Once);
+        }
+
+        [Fact]
+        public async Task FetchPaymentAsync_ThrowsException_WhenDALThrowsException()
+        {
+            // Arrange
+            var paymentId = Guid.NewGuid();
+            _dalPaymentGateway.Setup(d => d.FetchPaymentResponseAsync(paymentId))
+                    .ThrowsAsync(new Exception("Database error"));
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<Exception>(() => _paymentGatewayManager.FetchPaymentAsync(paymentId));
+            Assert.Equal("Database error", exception.Message);
+
+            _dalPaymentGateway.Verify(d => d.FetchPaymentResponseAsync(paymentId), Times.Once);
         }
     }
 }

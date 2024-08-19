@@ -16,11 +16,12 @@ namespace PaymentGateway.Api.Controllers
         /// <summary>
         /// Processes a payment for a merchant. Assumes an unauthenticated endpoint being called from the merchant
         /// </summary>
+        /// <param name="paymentRequest">Payment Request with defined parameters.</param>
         /// <returns>PaymentResponse entity.</returns>
         [HttpPost]
         [ProducesResponseType(typeof(PaymentResponse), (int)HttpStatusCode.OK)]
         [ProducesResponseType(typeof(void), (int)HttpStatusCode.BadRequest)]
-        public async Task<IActionResult> ProcessPayment([FromBody] PaymentRequest paymentRequest)
+        public async Task<IActionResult> Post([FromBody] PaymentRequest paymentRequest)
         {
             try
             {
@@ -29,6 +30,26 @@ namespace PaymentGateway.Api.Controllers
             catch (Exception)
             {
                 return BadRequest();
+            }
+        }
+
+        /// <summary>
+        /// Fetches a payment for a merchant. Assumes an unauthenticated endpoint being called from the merchant
+        /// </summary>
+        /// <param name="paymentId">Id of the payment to retrieve.</param>
+        /// <returns>PaymentResponse entity.</returns>
+        [HttpGet]
+        [ProducesResponseType(typeof(PaymentResponse), (int)HttpStatusCode.OK)]
+        [ProducesResponseType(typeof(void), (int)HttpStatusCode.BadRequest)]
+        public async Task<IActionResult> Get(Guid paymentId)
+        {
+            try
+            {
+                return Ok(await _paymentGatewayManager.FetchPaymentAsync(paymentId));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex);
             }
         }
     }
