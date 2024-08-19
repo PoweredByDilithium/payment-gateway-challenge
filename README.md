@@ -68,7 +68,9 @@ Expected output:
 ```
 
 **GET /api/PaymentGateway**
+
 Expected input:
+
 Existing Guid for a previous payment
 ```4c94fd33-0afb-4854-adba-132a5e14b454 ```
 
