@@ -40,12 +40,14 @@ namespace PaymentGateway.Api.Controllers
         /// <returns>PaymentResponse entity.</returns>
         [HttpGet]
         [ProducesResponseType(typeof(PaymentResponse), (int)HttpStatusCode.OK)]
+        [ProducesResponseType(typeof(void), (int)HttpStatusCode.NotFound)]
         [ProducesResponseType(typeof(void), (int)HttpStatusCode.BadRequest)]
         public async Task<IActionResult> Get(Guid paymentId)
         {
             try
             {
-                return Ok(await _paymentGatewayManager.FetchPaymentAsync(paymentId));
+                var response = await _paymentGatewayManager.FetchPaymentAsync(paymentId);
+                return response != null ? Ok(response) : NotFound("Payment not found");
             }
             catch (Exception ex)
             {

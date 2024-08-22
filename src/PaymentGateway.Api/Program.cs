@@ -19,7 +19,6 @@ builder.Services.AddDbContext<Context>(x => {
 });
 
 // Register HttpClientFactory
-builder.Services.AddHttpClient();
 builder.Services.AddHttpClient("BankClient", client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["BankSimulator:ApiUri"]);
