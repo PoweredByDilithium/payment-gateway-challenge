@@ -5,14 +5,13 @@
     "type": "module",
     "private": true,
     "scripts": {
-      "test": "echo \"Error: no test specified\" && exit 1",
-      "prepare": "husky install"
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "prepare": "husky install"
     },
     "author": "Kyle Johnson",
     "devDependencies": {
-      "@commitlint/cli": "^19.4.0",
-      "@commitlint/config-conventional": "^19.2.2",
-      "husky": "^9.1.4"
+        "@commitlint/cli": "^19.4.0",
+        "@commitlint/config-conventional": "^19.2.2",
+        "husky": "^8.0.3"
     }
-  }
-  
+}
